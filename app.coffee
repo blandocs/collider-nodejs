@@ -4,9 +4,59 @@ logger = require('tracer').console()
 
 server = http.createServer((request, response) ->
   console.log new Date + ' Received request for ' + request.url
-  response.writeHead 404
-  response.end()
-  return
+
+  if request.url.match(/\d\/\d/)
+
+    request_split = request.url.split('/')
+    
+    if request_split.length isnt 3
+      logger.log "Invalid path"
+      response.writeHead 404
+      response.end()
+      return
+    rid = request_split[1]
+    cid = request_split[2]
+    
+    response.setHeader("Access-Control-Allow-Origin", '*')
+    response.setHeader("Access-Control-Allow-Methods", 'POST, DELETE')
+
+    body = ""
+
+    if request.method is 'POST'
+      request.on 'data', (chunk) ->
+        body += chunk
+
+      request.on 'end', () ->
+        logger.log 'body: ' + body
+        jsonObj = JSON.parse(body)
+
+        logger.log body
+        if body is ""
+          response.writeHead 500
+          response.write("Empty request body")
+          response.end()
+          logger.log "Empty request body"
+          return
+        else 
+          logger.log collider.roomTable.send(rid, cid, body) 
+          if collider.roomTable.send(rid, cid, body) is true
+            response.writeHead 200
+            response.end()    
+            return
+          else
+            response.writeHead 500
+            response.end()
+            return
+
+    else
+      response.writeHead 500
+      response.end()
+      return
+
+  else
+    response.writeHead 404
+    response.end()
+    return
 )
 
 maxQueuedMsgCount = 1024
@@ -24,6 +74,7 @@ class Client
       return false
     else
       @wsc = wsc
+      logger.log "ok"
       return true
 
   deregister: () ->
@@ -56,7 +107,8 @@ class Client
       logger.log "Invalid client"
       return false
     if (other.wsc isnt null)
-      await sendServerMsg defer other.wsc, m
+      logger.log msg
+      sendServerMsg other.wsc, msg
       return true
     else
       return @enqueue(msg)
@@ -99,12 +151,15 @@ class Room
 
     client = @client(clientID)
     
-    logger.log client
+    # logger.log wsc
+    
     if client is false
       return false
 
     if client.register(wsc) is false
       return false
+
+    logger.log client
 
     logger.log "Client #{clientID} registered in room #{@id}"
 
@@ -115,15 +170,21 @@ class Room
 
   send: (srcClientID, msg) ->
     src = @client(srcClientID)
+    # logger.log src
     if src is false
       return false    
+
 
     if Object.keys(@clients).length is 1
       @clients[srcClientID].enqueue(msg)
 
-    for c_id, c_obj in @clients 
+    logger.log Object.keys(@clients).length
+
+    for c_id in Object.keys(@clients)
+      logger.log c_id
       if c_id isnt srcClientID
-        return src.send(c_obj, msg)
+        logger.log c_id
+        return src.send(@clients[c_id], msg)
 
   remove: (clientID) ->
     client = @client(clientID)
@@ -226,20 +287,24 @@ class wsClientMsg
 
 class wsServerMsg
 
-  constructor: (json_object) ->
-    @Msg = json_object.msg
-    @Error = json_object.error
+  constructor: (msg, err) ->
+    logger.log msg
+    @Msg = msg
+    @Error = err
 
 
-sendServerMsg = (wsc, json_object) ->
-  m = new wsServerMsg(json_object)
+sendServerMsg = (wsc, msg) ->
+  logger.log msg
+  m = new wsServerMsg(msg, null)
+  logger.log m
   return send(wsc, m.Msg)
 
-sendServerErr = (wsc, json_object) ->
-  m = new wsServerMsg(json_object)
+sendServerErr = (wsc, err) ->
+  m = new wsServerMsg(null, err)
   return send(wsc, m.Error)
 
 send = (wsc, msg) ->
+  logger.log msg
   wsc.sendUTF msg
 
 class Collider
@@ -255,9 +320,12 @@ originIsAllowed = (origin) ->
 
 collider = new Collider("http://127.0.0.1:8000")
 
+
+
 server.listen 8089, ->
   console.log new Date + ' Server is listening on port 8089'
   return
+ 
 
 wsServer = new WebSocketServer(
   httpServer: server
@@ -281,12 +349,21 @@ wsServer.on 'request', (request) ->
       ClientMsg = new wsClientMsg(message.utf8Data)
       
       cmd = ClientMsg.Cmd
-      rid = ClientMsg.RoomID
-      cid = ClientMsg.ClientID
+
+      if connection.rid is undefined
+        rid = ClientMsg.RoomID
+      else
+        rid = connection.rid
+      if connection.cid is undefined
+        cid = ClientMsg.ClientID
+      else
+        cid = connection.cid
       msg = ClientMsg.Msg
 
-      logger.log ClientMsg
-      logger.log cmd
+      # logger.log ClientMsg
+      logger.log rid
+      logger.log cid
+      # logger.log rid
 
       if cmd is "register"
         if connection.registered
@@ -298,7 +375,7 @@ wsServer.on 'request', (request) ->
           return
 
         result = collider.roomTable.register(rid, cid, connection)
-
+        # logger.log connection
         if result is false
           return
 
@@ -306,7 +383,7 @@ wsServer.on 'request', (request) ->
         connection.rid = rid
         connection.cid = cid
 
-        collider.roomTable.deregister(rid, cid)
+        # collider.roomTable.deregister(rid, cid)
 
       else if cmd is "send"
         if connection.registered is false
