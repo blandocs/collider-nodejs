@@ -27,7 +27,7 @@ class Client
       return true
 
   deregister: () ->
-    rwc.Close()
+    @wsc.close()
     @wsc = null
 
   registered: () ->
@@ -63,6 +63,8 @@ class Client
       # @msg.push(msg)
       # return true
 
+maxRoomCapacity = 2
+
 class Room
 
   constructor: (roomTable, id, rs) ->
@@ -71,8 +73,15 @@ class Room
     @clients = {} #  A mapping from the client ID to the client object. key: string, value client object
     @roomSrvUrl = rs
   client: (clientID) ->
-    c = @client[clientID]
-    if c isnt null then return c
+    c = @clients[clientID]
+
+    logger.log c
+
+    if c isnt undefined then return c
+
+    
+
+    logger.log c
 
     if Object.keys(@clients).length >= maxRoomCapacity
       logger.log "Room #{@id} is full, not adding client #{clientID}"
@@ -80,13 +89,17 @@ class Room
 
     @clients[clientID] = new Client(clientID)
 
+
     logger.log "Added client #{clientID} to room #{@id}"
     return @clients[clientID]
 
     # register fail -> remove client frmo room table
 
   register: (clientID, wsc) ->
+
     client = @client(clientID)
+    
+    logger.log client
     if client is false
       return false
 
@@ -204,6 +217,8 @@ class RoomTable
 class wsClientMsg
 
   constructor: (json_object) ->
+    json_object = JSON.parse(json_object)
+
     @Cmd = json_object.cmd
     @RoomID = json_object.roomid
     @ClientID = json_object.clientid
@@ -227,10 +242,18 @@ sendServerErr = (wsc, json_object) ->
 send = (wsc, msg) ->
   wsc.sendUTF msg
 
+class Collider
+
+  constructor: (rs) ->
+    @roomTable = new RoomTable(rs)
+
+
 
 originIsAllowed = (origin) ->
   # put logic here to detect whether the specified origin is allowed. 
   true
+
+collider = new Collider("http://127.0.0.1:8000")
 
 server.listen 8089, ->
   console.log new Date + ' Server is listening on port 8089'
@@ -252,14 +275,56 @@ wsServer.on 'request', (request) ->
 
   connection.on 'message', (message) ->
     if message.type is 'utf8'
-      console.log connection
+      # console.log connection
       console.log 'Received Message: ' + message.utf8Data
 
-      cmd = message.utf8Data.cmd
-      roomid = message.utf8Data.roomid
-      clientid = message.utf8Data.clientid
+      ClientMsg = new wsClientMsg(message.utf8Data)
+      
+      cmd = ClientMsg.Cmd
+      rid = ClientMsg.RoomID
+      cid = ClientMsg.ClientID
+      msg = ClientMsg.Msg
 
-      connection.sendUTF message.utf8Data
+      logger.log ClientMsg
+      logger.log cmd
+
+      if cmd is "register"
+        if connection.registered
+          logger.log "Duplicated register request"
+          return
+
+        if rid is "" or cid is "" 
+          logger.log "Invalid register request: missing 'clientid' or 'roomid'"
+          return
+
+        result = collider.roomTable.register(rid, cid, connection)
+
+        if result is false
+          return
+
+        connection.registerd = true
+        connection.rid = rid
+        connection.cid = cid
+
+        collider.roomTable.deregister(rid, cid)
+
+      else if cmd is "send"
+        if connection.registered is false
+          logger.log "Client not registered"
+          return  
+
+        if msg is ""
+          logger.log "Invalid send request: missing 'msg'"
+          return
+
+        collider.roomTable.send(rid, cid, msg)
+        return
+      else
+        logger.log "Invalid message: unexpected 'cmd'"
+        return
+
+
+      # connection.sendUTF message.utf8Data
     else if message.type is 'binary'
       console.log 'Received Binary Message of ' + message.binaryData.length + ' bytes'
       connection.sendBytes message.binaryData
