@@ -93,6 +93,7 @@ class Client
     return true
 
   sendQueued: (other) ->
+    logger.log "sendQueued"
     if (@id is other.id) or other.wsc is null
       logger.log "Invalid client"
       return false
@@ -112,6 +113,7 @@ class Client
       sendServerMsg other.wsc, msg
       return true
     else
+      logger.log "enqueue in client send"
       return @enqueue(msg)
       # @msg.push(msg)
       # return true
@@ -128,13 +130,8 @@ class Room
   client: (clientID) ->
     c = @clients[clientID]
 
-    logger.log c
-
     if c isnt undefined then return c
 
-    
-
-    logger.log c
 
     if Object.keys(@clients).length >= maxRoomCapacity
       logger.log "Room #{@id} is full, not adding client #{clientID}"
@@ -160,13 +157,17 @@ class Room
     if client.register(wsc) is false
       return false
 
-    logger.log client
+    logger.log client.id
 
     logger.log "Client #{clientID} registered in room #{@id}"
 
+    logger.log Object.keys(@clients).length
+
     if Object.keys(@clients).length > 1
-      for c_id, c_obj in @clients
-        c_obj.sendQueued(client)
+
+      for c_id in Object.keys(@clients)
+        logger.log c_id
+        @clients[c_id].sendQueued(client)
     return true
 
   send: (srcClientID, msg) ->
@@ -177,6 +178,7 @@ class Room
 
 
     if Object.keys(@clients).length is 1
+      logger.log "enqueue in room send"
       @clients[srcClientID].enqueue(msg)
 
     logger.log Object.keys(@clients).length
