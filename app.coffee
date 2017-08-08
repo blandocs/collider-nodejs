@@ -140,7 +140,66 @@ class Room
 
     return count 
 
+class RoomTable
 
+  constructor: (rs) ->
+    @rooms = {} #  A mapping from the room ID to the room object. key: string, value room object
+    @roomSrvUrl = rs
+
+  room: (id) ->
+    return @roomLocked(id)
+  roomLocked: (id) ->
+    r = @rooms[id]
+    if r
+      return r
+    @rooms[id] = new Room(@, id, @roomSrvUrl)
+    logger.log "Created room #{id}"
+    return @rooms[id]
+
+  remove: (rid, cid) ->
+    @removeLocked(rid, cid)
+
+  removeLocked: (rid, cid) ->
+    r = @rooms[rid]
+
+    if r isnt null
+      r.remove(cid)
+      if r.empty()
+        delete @rooms[rid]
+        logger.log "Removed room #{rid}"
+
+  send: (rid, srcID, msg) ->
+    r= @roomLocked(rid)
+    return r.send(srcID, msg)
+
+  register: (rid, cid, wsc) ->
+    r= @roomLocked(rid)
+    return r.register(cid, wsc)
+
+  deregister: (rid, cid) ->
+    r = @rooms[rid]
+
+    if r isnt null
+      c = r.clients[cid]
+      if c isnt null
+        if c.registered()
+          c.deregister()
+
+          # c.setTimer(time.AfterFunc(rt.registerTimeout, func() {
+          #   rt.removeIfUnregistered(rid, c)
+          # }))
+
+          logger.log "Deregistered client #{c.id} from room #{rid}"
+          return
+
+  # removeIfUnregistered
+
+  wsCount: () ->
+    count = 0
+    for r_id, r_obj in @rooms
+      count += r_obj.wsCount()
+
+    return count
 
 originIsAllowed = (origin) ->
   # put logic here to detect whether the specified origin is allowed. 
