@@ -211,8 +211,8 @@ class Room
 
   wsCount: () ->
     count = 0
-    for c_id, c_obj in @clients
-      if c_obj.registered()
+    for c_id in Object.keys(@clients)
+      if @client[c_id].registered()
         count += 1
 
     return count 
@@ -273,8 +273,8 @@ class RoomTable
 
   wsCount: () ->
     count = 0
-    for r_id, r_obj in @rooms
-      count += r_obj.wsCount()
+    for r_id in Object.keys(@rooms)
+      count += @rooms[r_id].wsCount()
 
     return count
 
