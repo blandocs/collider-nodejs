@@ -1,6 +1,7 @@
 WebSocketServer = require('websocket').server
 http = require('http')
 logger = require('tracer').console()
+utf8 = require('utf8')
 
 server = http.createServer((request, response) ->
   console.log new Date + ' Received request for ' + request.url
@@ -304,8 +305,8 @@ sendServerErr = (wsc, err) ->
   return send(wsc, m.Error)
 
 send = (wsc, msg) ->
-  logger.log msg
-  wsc.sendUTF msg
+  logger.log  utf8.encode(msg)
+  wsc.sendUTF utf8.encode(JSON.stringify({msg: msg}))
 
 class Collider
 

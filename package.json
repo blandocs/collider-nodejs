@@ -18,6 +18,7 @@
   "homepage": "https://github.com/blandocs/collider-nodejs#readme",
   "dependencies": {
     "tracer": "^0.8.9",
+    "utf8": "^2.1.2",
     "websocket": "^1.0.24"
   }
 }
