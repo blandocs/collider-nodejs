@@ -353,14 +353,21 @@ wsServer.on 'request', (request) ->
       
       cmd = ClientMsg.Cmd
 
-      if connection.rid is undefined
-        rid = ClientMsg.RoomID
-      else
+      if connection.registerd is true
         rid = connection.rid
-      if connection.cid is undefined
-        cid = ClientMsg.ClientID
-      else
         cid = connection.cid
+      else
+        rid = ClientMsg.RoomID
+        cid = ClientMsg.ClientID
+
+      # if connection.rid is undefined
+      #   rid = ClientMsg.RoomID
+      # else
+      #   rid = connection.rid
+      # if connection.cid is undefined
+      #   cid = ClientMsg.ClientID
+      # else
+      #   cid = connection.cid
       msg = ClientMsg.Msg
 
       # logger.log ClientMsg
@@ -379,12 +386,15 @@ wsServer.on 'request', (request) ->
 
         result = collider.roomTable.register(rid, cid, connection)
         # logger.log connection
+
+        connection.rid = rid
+        connection.cid = cid
+
         if result is false
           return
 
         connection.registerd = true
-        connection.rid = rid
-        connection.cid = cid
+
 
         # collider.roomTable.deregister(rid, cid)
 
@@ -411,6 +421,13 @@ wsServer.on 'request', (request) ->
     return
 
   connection.on 'close', (reasonCode, description) ->
+    
+    if connection.rid and connection.cid
+      collider.roomTable.deregister(connection.rid, connection.cid)
+
+
+
+
     console.log new Date + ' Peer ' + connection.remoteAddress + ' disconnected.'
     return
   return
