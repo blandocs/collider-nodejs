@@ -201,6 +201,33 @@ class RoomTable
 
     return count
 
+class wsClientMsg
+
+  constructor: (json_object) ->
+    @Cmd = json_object.cmd
+    @RoomID = json_object.roomid
+    @ClientID = json_object.clientid
+    @Msg = json_object.msg
+
+class wsServerMsg
+
+  constructor: (json_object) ->
+    @Msg = json_object.msg
+    @Error = json_object.error
+
+
+sendServerMsg = (wsc, json_object) ->
+  m = new wsServerMsg(json_object)
+  return send(wsc, m.Msg)
+
+sendServerErr = (wsc, json_object) ->
+  m = new wsServerMsg(json_object)
+  return send(wsc, m.Error)
+
+send = (wsc, msg) ->
+  wsc.sendUTF msg
+
+
 originIsAllowed = (origin) ->
   # put logic here to detect whether the specified origin is allowed. 
   true
