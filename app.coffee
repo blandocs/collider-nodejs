@@ -257,7 +257,7 @@ class RoomTable
   removeLocked: (rid, cid) ->
     r = @rooms[rid]
 
-    if r isnt null
+    if r isnt undefined
       r.remove(cid)
       if r.empty()
         delete @rooms[rid]
@@ -274,9 +274,9 @@ class RoomTable
   deregister: (rid, cid) ->
     r = @rooms[rid]
 
-    if r isnt null
+    if r isnt undefined
       c = r.clients[cid]
-      if c isnt null
+      if c isnt undefined
         if c.registered()
           c.deregister()
 
