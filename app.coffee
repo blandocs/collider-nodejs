@@ -1,9 +1,17 @@
 WebSocketServer = require('websocket').server
-http = require('http')
+https = require('https')
 logger = require('tracer').console()
 utf8 = require('utf8')
+fs = require("fs")
 
-server = http.createServer((request, response) ->
+
+options = 
+  key: fs.readFileSync('/cert/key.pem'),
+  cert: fs.readFileSync('/cert/cert.pem')
+
+
+
+server = https.createServer(options, (request, response) ->
   console.log new Date + ' Received request for ' + request.url
 
   if request.url.match(/\d\/\d/)
@@ -59,6 +67,11 @@ server = http.createServer((request, response) ->
     response.end()
     return
 )
+
+server.listen 8089, ->
+  console.log new Date + ' Server is listening on port 8089'
+  return
+ 
 
 maxQueuedMsgCount = 1024
 
@@ -324,11 +337,6 @@ originIsAllowed = (origin) ->
 collider = new Collider("http://127.0.0.1:8000")
 
 
-
-server.listen 8089, ->
-  console.log new Date + ' Server is listening on port 8089'
-  return
- 
 
 wsServer = new WebSocketServer(
   httpServer: server
