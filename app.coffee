@@ -1,17 +1,26 @@
 WebSocketServer = require('websocket').server
-https = require('https')
 logger = require('tracer').console()
 utf8 = require('utf8')
 fs = require("fs")
+constants = require("./constants.coffee")
 
+if constants.WSS_TLS
+  options = 
+    key: fs.readFileSync('/cert/key.pem'),
+    cert: fs.readFileSync('/cert/cert.pem')
 
-options = 
-  key: fs.readFileSync('/cert/key.pem'),
-  cert: fs.readFileSync('/cert/cert.pem')
+  server = require('https').createServer options, (request, response) ->
+    server_func(request, response)
 
-
-
-server = https.createServer(options, (request, response) ->
+else
+  server = require('http').createServer (request, response) ->
+    server_func(request, response)
+  
+server.listen constants.PORT, ->
+  console.log new Date + " Server is listening on port #{constants.PORT}"
+  return
+ 
+server_func = (request,response) ->
   console.log new Date + ' Received request for ' + request.url
 
   if request.url.match(/\d\/\d/)
@@ -66,12 +75,7 @@ server = https.createServer(options, (request, response) ->
     response.writeHead 404
     response.end()
     return
-)
 
-server.listen 8089, ->
-  console.log new Date + ' Server is listening on port 8089'
-  return
- 
 
 maxQueuedMsgCount = 1024
 
