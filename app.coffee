@@ -213,7 +213,7 @@ class Room
     if client
       client.deregister()
       delete @clients[clientID]
-      logger.log "Removed client #{clientID} from room @id"
+      logger.log "Removed client #{clientID} from room #{@id}"
 
       # Send bye to the room Server.
       # resp, err := http.Post(rm.roomSrvUrl+"/bye/"+rm.id+"/"+clientID, "text", nil)
@@ -278,11 +278,13 @@ class RoomTable
       c = r.clients[cid]
       if c isnt undefined
         if c.registered()
-          c.deregister()
+          r.remove(cid)
 
           # c.setTimer(time.AfterFunc(rt.registerTimeout, func() {
           #   rt.removeIfUnregistered(rid, c)
           # }))
+          if r.empty()
+            delete @rooms[rid]
 
           logger.log "Deregistered client #{c.id} from room #{rid}"
           return
@@ -341,7 +343,27 @@ originIsAllowed = (origin) ->
 
 collider = new Collider("http://127.0.0.1:8000")
 
+myFunction = () ->
+  # logger.log(collider.roomTable)
 
+  for key1, value1 of collider.roomTable
+    if key1 is 'rooms'
+      logger.log value1
+      for room_id, value2 of value1
+        logger.log room_id
+        for client_id, value3 of value2.clients
+          logger.log client_id
+
+
+
+  # for key1, value1 of global_room
+  #   logger.log key1
+  #   for key2, value2 of value1
+  #     logger.log key2
+  #     for key3, value3 of value2
+  #       logger.log key3
+
+setInterval(myFunction , 3000)
 
 wsServer = new WebSocketServer(
   httpServer: server
