@@ -4,6 +4,7 @@ utf8 = require('utf8')
 fs = require("fs")
 constants = require("./constants.coffee")
 
+
 if constants.WSS_TLS
   options = 
     key: fs.readFileSync('/cert/key.pem'),
@@ -17,7 +18,7 @@ else
     server_func(request, response)
   
 server.listen constants.PORT, ->
-  console.log new Date + " Server is listening on port #{constants.PORT}"
+  console.log new Date + " Server is listening on port #{constants.PORT} in #{constants.MODE}"
   return
  
 server_func = (request,response) ->

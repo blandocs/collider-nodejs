@@ -1,0 +1,1 @@
+ NODE_ENV=product iced app.coffee -o ./out.log -e ./err.log
